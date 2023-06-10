@@ -98,6 +98,30 @@ export class Store<T extends Record<string | symbol, unknown>> {
     onEmit(this.store, new Set());
     return this.subscribe(onEmit, ...on);
   }
+
+  /**
+   * Derive a store from another one
+   * @param store to derive from
+   * @param reducer transform object from `FT` to `T`
+   * @param partialReducer provide this to prevent state syncing causing update on all fields
+   */
+  static deriveFrom<
+    T extends Record<string | symbol, unknown>,
+    FT extends Record<string | symbol, unknown>
+  >(
+    store: Store<FT>,
+    reducer: (value: FT) => T,
+    partialReducer?: (current: T, partialUpdate: Partial<FT>) => Partial<T>
+  ): Store<T> {
+    const newStore = new this(reducer(store.get()));
+    store.subscribe((state, fields) => {
+      if (!partialReducer) return newStore.set(reducer(state));
+      const update: Partial<FT> = {};
+      for (const key of fields) update[key] = state[key];
+      newStore.set(partialReducer(newStore.get(), update));
+    });
+    return newStore;
+  }
 }
 
 export function useStore<T extends Record<string | symbol, unknown>>(
@@ -111,6 +135,17 @@ export function useStore<T extends Record<string | symbol, unknown>>(
   }, []);
 
   return state;
+}
+
+export function useDerivedStore<
+  T extends Record<string | symbol, unknown>,
+  FT extends Record<string | symbol, unknown>
+>(
+  store: Store<FT>,
+  reducer: (value: FT) => T,
+  partialReducer?: (current: T, partialUpdate: Partial<FT>) => Partial<T>
+): T {
+  return useStore(Store.deriveFrom(store, reducer, partialReducer));
 }
 
 export function useStoreWithInitial<T extends Record<string | symbol, unknown>>(

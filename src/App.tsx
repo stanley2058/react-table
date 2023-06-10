@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useTable as useRapidTable } from "./rapid-table/Table";
 import {
   TableBodyCellRenderer,
-  TableData,
   TableHeadCellRenderer,
-  useTable,
-} from "./table";
+} from "./rapid-table/TableTypes";
+import { v4 } from "uuid";
 
 type Todo = {
   userId: number;
@@ -18,81 +18,121 @@ function useTodoData() {
   useEffect(() => {
     fetch("https://jsonplaceholder.typicode.com/todos")
       .then((res) => res.json())
-      .then(setTodos);
+      .then((todos: Todo[]) => {
+        const arr: Todo[] = [];
+        for (let i = 0; i < 50; i++) {
+          for (let j = 0; j < todos.length; j++) {
+            const todo = structuredClone(todos[j]);
+            todo.id = i * todos.length + j;
+            arr.push(todo);
+          }
+        }
+        setTodos(arr);
+      });
   }, []);
 
   return todos;
 }
 
-const CompletedRenderer: TableBodyCellRenderer<Todo> = ({ data }, update) => {
-  return (
-    <input
-      style={{ width: "100%" }}
-      type="checkbox"
-      checked={data.completed}
-      onClick={() => {
-        update({
-          data: {
-            ...data,
-            completed: !data.completed,
-          },
-        });
-      }}
-    />
-  );
-};
+const Completed: TableBodyCellRenderer<Todo> = (_, data, update) => (
+  <input
+    style={{ width: "100%" }}
+    type="checkbox"
+    checked={data.completed}
+    onChange={(e) => {
+      update({
+        ...data,
+        completed: e.target.checked,
+      });
+    }}
+  />
+);
 
-function getIdRenderer(): TableHeadCellRenderer<Todo> {
-  return (_, store) => (
+let desc = true;
+const TitleRenderer: TableHeadCellRenderer<Todo> = (core) => {
+  return (
     <span
-      style={{ width: "100%" }}
       onClick={() => {
-        store.set({
-          sortBy: "id",
-          sortDir: store.getValue("sortDir") === "DESC" ? "ASC" : "DESC",
-        });
-      }}
-    >
-      ID
-    </span>
-  );
-}
-function getTitleRenderer(): TableHeadCellRenderer<Todo> {
-  return (_, store) => (
-    <span
-      style={{ width: "100%" }}
-      onClick={() => {
-        store.set({
-          sortBy: "title",
-          sortDir: store.getValue("sortDir") === "DESC" ? "ASC" : "DESC",
-        });
+        core.updateFn.updateAll(
+          Array.from(core.data).sort(
+            (a, b) => a.data.title.localeCompare(b.data.title) * (desc ? 1 : -1)
+          )
+        );
+        desc = !desc;
       }}
     >
       Title
     </span>
   );
-}
+};
+const IdRenderer: TableHeadCellRenderer<Todo> = (core) => {
+  return (
+    <span
+      style={{ width: "80px", display: "inline-block" }}
+      onClick={() => {
+        core.updateFn.updateAll(
+          Array.from(core.data).sort(
+            (a, b) => (a.data.id - b.data.id) * (desc ? 1 : -1)
+          )
+        );
+        desc = !desc;
+      }}
+    >
+      ID
+    </span>
+  );
+};
+
+let selected = false;
+const CompletedRenderer: TableHeadCellRenderer<Todo> = (core) => {
+  return (
+    <span
+      onClick={() => {
+        selected = !selected;
+        core.updateFn.updateAll(
+          Array.from(core.data).map((d) => ({
+            id: v4(),
+            data: { ...d.data, completed: selected },
+          }))
+        );
+      }}
+    >
+      Completed
+    </span>
+  );
+};
 
 export default function App() {
+  const ref = useRef<HTMLDivElement>(null);
   const todos = useTodoData();
-  const [Table, updateFn] = useTable({
-    data: todos,
+  const { table, recalculateDisplayable } = useRapidTable(todos, {
+    viewportRef: ref,
+    hideHeaderDuringScrolling: true,
+    virtualScrollOffset: 25,
+    virtualScrollElementMarginTop: 10,
+    virtualScrollElementMarginBottom: 10,
+    tableName: "todo",
     bodyRenderer: {
-      completed: CompletedRenderer,
+      completed: Completed,
     },
     headRenderer: {
-      id: getIdRenderer(),
-      title: getTitleRenderer(),
+      title: TitleRenderer,
+      id: IdRenderer,
+      completed: CompletedRenderer,
     },
-    sorter: {
-      id: (a, b) => a.id - b.id,
-      userId: (a, b) => a.userId - b.userId,
-      title: (a, b) => a.title.localeCompare(b.title),
-    },
+    headers: ["completed", "userId", "id", "title"],
   });
-  useEffect(() => {
-    updateFn({ data: todos });
-  }, [todos]);
 
-  return <div>{Table}</div>;
+  return (
+    <div
+      ref={ref}
+      onScroll={recalculateDisplayable}
+      style={{
+        maxHeight: "100vh",
+        overflow: "auto",
+      }}
+    >
+      {table}
+    </div>
+  );
 }

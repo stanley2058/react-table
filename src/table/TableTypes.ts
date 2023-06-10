@@ -1,4 +1,4 @@
-import { HTMLProps, ReactNode } from "react";
+import { ReactNode } from "react";
 import { Store } from "../store";
 
 export type TableDisplayable = Record<string | symbol, unknown>;
@@ -12,23 +12,21 @@ export type TableBodyRowRenderer<T extends TableDisplayable> = Record<
 >;
 
 export type TableBodyRowInfo<T extends TableDisplayable> = {
-  order: number;
+  data: T;
   visible: boolean;
   selected: boolean;
-  data: T;
   tableName?: string;
+};
+export type InternalTableBodyRowInfo<T extends TableDisplayable> = {
+  id: string;
+  info: TableBodyRowInfo<T>;
+  rowStore: Store<TableBodyRowInfo<T>>;
+  element: ReactNode;
 };
 
 export type TableBodyRowProps<T extends TableDisplayable> = {
   store: Store<TableBodyRowInfo<T>>;
-  headers: Set<keyof T>;
-} & Pick<TableBodyProps<T>, "globalStore" | "styleRenderer" | "bodyRenderer">;
-
-export type TableBodyProps<T extends TableDisplayable> = Omit<
-  HTMLProps<HTMLTableSectionElement>,
-  "data" | "head" | "headers"
-> &
-  InternalTableData<T>;
+} & TableComponentProps<T>;
 
 export type TableHeadCellRenderer<T extends TableDisplayable> = (
   data: T[],
@@ -39,11 +37,6 @@ export type TableHeadRowRenderer<T extends TableDisplayable> = Record<
   keyof T,
   TableHeadCellRenderer<T>
 >;
-export type TableHeadProps<T extends TableDisplayable> = Omit<
-  HTMLProps<HTMLTableSectionElement>,
-  "data" | "head" | "headers"
-> &
-  InternalTableData<T>;
 
 export type TableStyleRenderer<T extends TableDisplayable> = {
   tableClassName?: string;
@@ -87,8 +80,4 @@ export type TableData<T extends TableDisplayable> = {
 
 export type TableComponentProps<T extends TableDisplayable> = {
   tableStore: Store<TableData<T>>;
-};
-
-export type InternalTableData<T extends TableDisplayable> = TableData<T> & {
-  globalStore: Store<TableData<T>>;
 };
