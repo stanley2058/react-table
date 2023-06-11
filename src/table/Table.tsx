@@ -13,7 +13,6 @@ import {
   TableData,
   TableConfig,
   TableCoreData,
-  TableUpdates,
 } from "./TableTypes";
 import { TBody, THead } from "./components";
 import { v4 } from "uuid";
@@ -69,15 +68,18 @@ export function Table<T extends TableObject>(
   );
 }
 
+function toTableData<T extends TableObject>(data: T[]): TableData<T>[] {
+  return data.map((d) => ({ id: v4(), data: d }));
+}
 export function useTableData<T extends TableObject>(
   data: T[]
 ): TableCoreData<T> {
-  const [tableData, setTableData] = useState<TableData<T>[]>(
-    data.map((d) => ({ id: v4(), data: d }))
+  const [tableData, setTableData] = useState<TableData<T>[]>(toTableData(data));
+  useEffect(() => setTableData(toTableData(data)), [data]);
+  const resetToInitial = useCallback(
+    () => setTableData(toTableData(data)),
+    [data]
   );
-  useEffect(() => {
-    setTableData(data.map((d) => ({ id: v4(), data: d })));
-  }, [data]);
 
   const updateAll = useCallback(
     (update: TableData<T>[]) => setTableData([...update]),
@@ -106,8 +108,9 @@ export function useTableData<T extends TableObject>(
       updateAll,
       update,
       updateById,
+      resetToInitial,
     }),
-    []
+    [resetToInitial]
   );
 
   return {
@@ -121,10 +124,8 @@ export function useTable<T extends TableObject>(
   config: TableConfig<T>
 ): {
   table: ReactNode;
-  data: ReadonlyArray<TableData<T>>;
-  updateFn: TableUpdates<T>;
   recalculateDisplayable: () => void;
-} {
+} & TableCoreData<T> {
   const data = useTableData(initialData);
   const ref = useRef<HTMLTableElement>(null);
   const { displayable, recalculateDisplayable } = useTableVirtualScroll(
@@ -138,8 +139,7 @@ export function useTable<T extends TableObject>(
     table: (
       <Table tableRef={ref} {...data} {...config} displayable={displayable} />
     ),
-    data: data.data,
-    updateFn: data.updateFn,
     recalculateDisplayable,
+    ...data,
   };
 }

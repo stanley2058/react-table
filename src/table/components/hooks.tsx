@@ -52,6 +52,9 @@ function TableRowElement<T extends TableObject>(
 function getRenderingData<T extends TableObject>(
   props: TableBodyProps<T>
 ): ReadonlyArray<TableData<T>> {
+  const data = props.filterFn
+    ? props.data.filter((d) => props.filterFn(d.data))
+    : props.data;
   if (!props.displayable) return props.data;
   return props.data.slice(
     props.displayable.displayStart,
@@ -67,11 +70,10 @@ export function useTableBodyRows<T extends TableObject>(
 
   const elements = useMemo(() => {
     const rendered: ReactNode[] = [];
-    const currentIds = new Set<string>();
+    const currentIds = new Set<string>(props.data.map((d) => d.id));
 
     const data = getRenderingData(props);
     for (const d of data) {
-      currentIds.add(d.id);
       let element = map.current.get(d.id);
       if (!element) {
         const prop = { ...props, tableData: d };

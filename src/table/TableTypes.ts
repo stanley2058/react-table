@@ -63,7 +63,10 @@ export type TableUpdates<T extends TableObject> = {
   update: (data: TableData<T>) => void;
   updateAll: (data: TableData<T>[]) => void;
   updateById: (id: string, data: T) => void;
+  resetToInitial: () => void;
 };
+
+export type TableFilterFn<T extends TableObject> = (data: T) => boolean;
 
 export type TableCoreData<T extends TableObject> = {
   data: ReadonlyArray<TableData<T>>;
@@ -71,7 +74,9 @@ export type TableCoreData<T extends TableObject> = {
 };
 
 export type TableProps<T extends TableObject> = TableCoreData<T> &
-  TableConfig<T> & { displayable?: TableDisplayableArea };
+  TableConfig<T> & {
+    displayable?: TableDisplayableArea;
+  };
 
 export type TableHeadProps<T extends TableObject> = HeadStyles<T> &
   Pick<TableProps<T>, "data" | "tableName" | "headers" | "headRenderer"> & {

@@ -102,6 +102,26 @@ const CompletedRenderer: TableHeadCellRenderer<Todo> = (core) => {
   );
 };
 
+let reset = false;
+const UserIdRenderer: TableHeadCellRenderer<Todo> = (core) => {
+  return (
+    <span
+      onClick={() => {
+        if (reset) {
+          core.updateFn.resetToInitial();
+        } else {
+          core.updateFn.updateAll(
+            Array.from(core.data).filter((d) => d.data.userId === 1)
+          );
+        }
+        reset = !reset;
+      }}
+    >
+      UserId
+    </span>
+  );
+};
+
 export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const todos = useTodoData();
@@ -120,6 +140,7 @@ export default function App() {
       title: TitleRenderer,
       id: IdRenderer,
       completed: CompletedRenderer,
+      userId: UserIdRenderer,
     },
     headers: ["completed", "userId", "id", "title"],
   });
