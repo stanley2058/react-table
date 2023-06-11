@@ -3,6 +3,7 @@ import {
   RefObject,
   createElement,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -48,6 +49,16 @@ function TableRowElement<T extends TableObject>(
   );
 }
 
+function getRenderingData<T extends TableObject>(
+  props: TableBodyProps<T>
+): ReadonlyArray<TableData<T>> {
+  if (!props.displayable) return props.data;
+  return props.data.slice(
+    props.displayable.displayStart,
+    props.displayable.displayEnd
+  );
+}
+
 export function useTableBodyRows<T extends TableObject>(
   props: TableBodyProps<T>
 ): ReadonlyArray<ReactNode> {
@@ -58,7 +69,8 @@ export function useTableBodyRows<T extends TableObject>(
     const rendered: ReactNode[] = [];
     const currentIds = new Set<string>();
 
-    for (const d of props.data) {
+    const data = getRenderingData(props);
+    for (const d of data) {
       currentIds.add(d.id);
       let element = map.current.get(d.id);
       if (!element) {
@@ -78,11 +90,7 @@ export function useTableBodyRows<T extends TableObject>(
       map.current.delete(k);
     }
 
-    if (!props.displayable) return rendered;
-    return rendered.slice(
-      props.displayable.displayStart,
-      props.displayable.displayEnd
-    );
+    return rendered;
   }, [props]);
 
   return elements;
@@ -114,7 +122,10 @@ function updateVirtualScrollImpl(
   const elementHeight = tbody
     .querySelector<HTMLElement>(":first-child")
     ?.getBoundingClientRect().height;
-  if (!elementHeight) return;
+  if (!elementHeight) {
+    if (config.hideHeaderDuringScrolling) showTableHead(table);
+    return;
+  }
 
   const scrollTop = Math.max(
     scrollDom.scrollTop - (config.virtualScrollOffset || 0),
@@ -155,7 +166,12 @@ export function useTableVirtualScroll<T extends TableObject>(
   totalDataLength: number,
   defaultLength: number
 ): { displayable?: TableDisplayableArea; recalculateDisplayable: () => void } {
-  const [displayable, setDisplayable] = useState<TableDisplayableArea>();
+  const [displayable, setDisplayable] = useState<TableDisplayableArea>({
+    displayStart: 0,
+    displayEnd: defaultLength,
+  });
+  const displayableRef = useRef(displayable);
+  displayableRef.current = displayable;
 
   const recalculateDisplayable = useCallback(() => {
     if (!config.viewportRef?.current || !tableRef.current) {
@@ -185,5 +201,14 @@ export function useTableVirtualScroll<T extends TableObject>(
     [totalDataLength, defaultLength]
   );
 
+  useEffect(() => {
+    if (!config.viewportRef?.current) return;
+    const observer = new ResizeObserver(() => {
+      if (!displayableRef.current) return;
+      recalculateDisplayable();
+    });
+    observer.observe(config.viewportRef.current);
+    return () => observer.disconnect();
+  }, [recalculateDisplayable]);
   return { displayable, recalculateDisplayable };
 }

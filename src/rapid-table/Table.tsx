@@ -130,7 +130,7 @@ export function useTable<T extends TableObject>(
   const { displayable, recalculateDisplayable } = useTableVirtualScroll(
     config,
     ref,
-    data.data.length,
+    initialData.length,
     config.virtualScrollInitial || initialData.length
   );
 

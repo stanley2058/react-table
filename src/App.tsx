@@ -20,7 +20,7 @@ function useTodoData() {
       .then((res) => res.json())
       .then((todos: Todo[]) => {
         const arr: Todo[] = [];
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 500; i++) {
           for (let j = 0; j < todos.length; j++) {
             const todo = structuredClone(todos[j]);
             todo.id = i * todos.length + j;
@@ -107,6 +107,7 @@ export default function App() {
   const todos = useTodoData();
   const { table, recalculateDisplayable } = useRapidTable(todos, {
     viewportRef: ref,
+    virtualScrollInitial: 10,
     hideHeaderDuringScrolling: true,
     virtualScrollOffset: 25,
     virtualScrollElementMarginTop: 10,
