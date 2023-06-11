@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useTable as useRapidTable } from "./rapid-table/Table";
 import {
   TableBodyCellRenderer,
   TableHeadCellRenderer,
-} from "./rapid-table/TableTypes";
+  useTable,
+} from "./table";
 import { v4 } from "uuid";
 
 type Todo = {
@@ -105,7 +105,7 @@ const CompletedRenderer: TableHeadCellRenderer<Todo> = (core) => {
 export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const todos = useTodoData();
-  const { table, recalculateDisplayable } = useRapidTable(todos, {
+  const { table, recalculateDisplayable } = useTable(todos, {
     viewportRef: ref,
     virtualScrollInitial: 10,
     hideHeaderDuringScrolling: true,

@@ -1,83 +1,95 @@
-import { ReactNode } from "react";
-import { Store } from "../store";
+import { ReactNode, RefObject } from "react";
 
-export type TableDisplayable = Record<string | symbol, unknown>;
-export type TableBodyCellRenderer<T extends TableDisplayable> = (
-  info: TableBodyRowInfo<T>,
-  update: (value: Partial<TableBodyRowInfo<T>>) => void
-) => ReactNode;
-export type TableBodyRowRenderer<T extends TableDisplayable> = Record<
-  keyof T,
-  TableBodyCellRenderer<T>
->;
+export type TableObject = Record<string | number | symbol, unknown>;
 
-export type TableBodyRowInfo<T extends TableDisplayable> = {
-  data: T;
-  visible: boolean;
-  selected: boolean;
-  tableName?: string;
-};
-export type InternalTableBodyRowInfo<T extends TableDisplayable> = {
+export type TableData<T extends TableObject> = {
   id: string;
-  info: TableBodyRowInfo<T>;
-  rowStore: Store<TableBodyRowInfo<T>>;
-  element: ReactNode;
+  data: T;
 };
 
-export type TableBodyRowProps<T extends TableDisplayable> = {
-  store: Store<TableBodyRowInfo<T>>;
-} & TableComponentProps<T>;
-
-export type TableHeadCellRenderer<T extends TableDisplayable> = (
-  data: T[],
-  globalStore: Store<TableData<T>>,
-  tableName?: string
+export type TableHeadCellRenderer<T extends TableObject> = (
+  core: TableCoreData<T>,
+  data: T[]
 ) => ReactNode;
-export type TableHeadRowRenderer<T extends TableDisplayable> = Record<
+export type TableHeadRowRenderer<T extends TableObject> = Record<
   keyof T,
   TableHeadCellRenderer<T>
 >;
 
-export type TableStyleRenderer<T extends TableDisplayable> = {
+export type TableBodyCellRenderer<T extends TableObject> = (
+  tableName: string,
+  info: T,
+  update: (value: T) => void
+) => ReactNode;
+export type TableBodyRowRenderer<T extends TableObject> = Record<
+  keyof T,
+  TableBodyCellRenderer<T>
+>;
+
+export type CommonStyles = {
   tableClassName?: string;
+};
+export type HeadStyles<T extends TableObject> = {
   theadClassName?: string;
-  tbodyClassName?: string;
   thClassName?: (col: keyof T, data: T[]) => string;
   headTrClassName?: (data: T[]) => string;
-  tdClassName?: (col: keyof T, data: TableBodyRowInfo<T>) => string;
-  bodyTrClassName?: (data: TableBodyRowInfo<T>) => string;
+};
+export type BodyStyles<T extends TableObject> = {
+  tbodyClassName?: string;
+  tdClassName?: (col: keyof T, data: T) => string;
+  bodyTrClassName?: (data: T) => string;
 };
 
-export type TableSorterComperator<T extends TableDisplayable> = (
-  a: T,
-  b: T
-) => number;
-export type TableSorter<T extends TableDisplayable> = Partial<
-  Record<keyof T, TableSorterComperator<T>>
->;
+export type VirtualScrollSettings = {
+  virtualScrollOffset?: number;
+  virtualScrollInitial?: number;
+  virtualScrollElementMarginTop?: number;
+  virtualScrollElementMarginBottom?: number;
+  hideHeaderDuringScrolling?: boolean;
+};
 
-export type TableFilterFn<T extends TableDisplayable> = (
-  row: T,
-  i: number
-) => boolean;
-export type TableFilterer<T extends TableDisplayable> = Partial<
-  Record<keyof T, TableFilterFn<T>>
->;
-
-export type TableData<T extends TableDisplayable> = {
-  data: T[];
+export type TableConfig<T extends TableObject> = {
+  tableName: string;
+  viewportRef?: RefObject<HTMLElement>;
   headers?: (keyof T)[];
   headRenderer?: Partial<TableHeadRowRenderer<T>>;
   bodyRenderer?: Partial<TableBodyRowRenderer<T>>;
-  sortBy?: keyof T;
-  sortDir?: "ASC" | "DESC";
-  sorter?: TableSorter<T>;
-  filterBy?: keyof T;
-  filterer?: TableFilterer<T>;
-  styleRenderer?: TableStyleRenderer<T>;
-  tableName?: string;
+  styles?: CommonStyles;
+  headStyles?: HeadStyles<T>;
+  bodyStyles?: BodyStyles<T>;
+} & VirtualScrollSettings;
+
+export type TableUpdates<T extends TableObject> = {
+  update: (data: TableData<T>) => void;
+  updateAll: (data: TableData<T>[]) => void;
+  updateById: (id: string, data: T) => void;
 };
 
-export type TableComponentProps<T extends TableDisplayable> = {
-  tableStore: Store<TableData<T>>;
+export type TableCoreData<T extends TableObject> = {
+  data: ReadonlyArray<TableData<T>>;
+  updateFn: TableUpdates<T>;
+};
+
+export type TableProps<T extends TableObject> = TableCoreData<T> &
+  TableConfig<T> & { displayable?: TableDisplayableArea };
+
+export type TableHeadProps<T extends TableObject> = HeadStyles<T> &
+  Pick<TableProps<T>, "data" | "tableName" | "headers" | "headRenderer"> & {
+    core: TableCoreData<T>;
+  };
+
+export type TableBodyProps<T extends TableObject> = BodyStyles<T> &
+  Pick<
+    TableProps<T>,
+    | "data"
+    | "updateFn"
+    | "tableName"
+    | "headers"
+    | "bodyRenderer"
+    | "displayable"
+  > & { core: TableCoreData<T> };
+
+export type TableDisplayableArea = {
+  displayStart: number;
+  displayEnd: number;
 };

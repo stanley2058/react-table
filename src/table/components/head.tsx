@@ -1,41 +1,21 @@
-import { TableComponentProps, TableDisplayable } from "../TableTypes";
 import { Th, Tr } from ".";
-import { useStore } from "../../store";
-import { useTableHeaders } from "./hooks";
 import { useMemo } from "react";
+import { TableHeadProps, TableObject } from "../TableTypes";
+import { useTableHead } from "./hooks";
 
-export function TableHeadRow<T extends TableDisplayable>(
-  props: TableComponentProps<T>
-) {
-  const headers = useTableHeaders(props.tableStore);
-  const keys = useMemo(() => [...headers], [headers]);
-  const { styleRenderer, headRenderer, data, tableName } = useStore(
-    props.tableStore,
-    "styleRenderer",
-    "headRenderer",
-    "data",
-    "tableName"
-  );
+export function THead<T extends TableObject>(props: TableHeadProps<T>) {
+  const columns = useTableHead(props.headers, props.data);
+  const mappedData = useMemo(() => props.data.map((d) => d.data), [props.data]);
 
   return (
-    <Tr className={styleRenderer?.headTrClassName?.(data)}>
-      {keys.map((k, i) => (
-        <Th key={i} className={styleRenderer?.thClassName?.(k, data)}>
-          {headRenderer?.[k]?.(data, props.tableStore, tableName) ||
-            k.toString()}
-        </Th>
-      ))}
-    </Tr>
-  );
-}
-
-export function THead<T extends TableDisplayable>(
-  props: TableComponentProps<T>
-) {
-  const { styleRenderer } = useStore(props.tableStore, "styleRenderer");
-  return (
-    <thead className={styleRenderer?.theadClassName}>
-      <TableHeadRow {...props} />
+    <thead className={props?.theadClassName}>
+      <Tr className={props?.headTrClassName?.(mappedData)}>
+        {columns.map((k, i) => (
+          <Th key={i} className={props?.thClassName?.(k, mappedData)}>
+            {props.headRenderer?.[k]?.(props.core, mappedData) || k.toString()}
+          </Th>
+        ))}
+      </Tr>
     </thead>
   );
 }
