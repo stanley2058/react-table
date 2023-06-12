@@ -52,9 +52,6 @@ function TableRowElement<T extends TableObject>(
 function getRenderingData<T extends TableObject>(
   props: TableBodyProps<T>
 ): ReadonlyArray<TableData<T>> {
-  const data = props.filterFn
-    ? props.data.filter((d) => props.filterFn(d.data))
-    : props.data;
   if (!props.displayable) return props.data;
   return props.data.slice(
     props.displayable.displayStart,
@@ -196,7 +193,7 @@ export function useTableVirtualScroll<T extends TableObject>(
       totalDataLength,
       setDisplayable
     );
-  }, [totalDataLength, defaultLength]);
+  }, [totalDataLength, defaultLength, displayable]);
 
   useLayoutEffect(
     () => recalculateDisplayable(),
