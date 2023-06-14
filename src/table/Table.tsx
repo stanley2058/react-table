@@ -1,6 +1,7 @@
 import {
   ReactNode,
   Ref,
+  RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -13,6 +14,7 @@ import {
   TableData,
   TableConfig,
   TableCoreData,
+  TableBodyRowRenderer,
 } from "./TableTypes";
 import { TBody, THead } from "./components";
 import { v4 } from "uuid";
@@ -21,8 +23,8 @@ import { useTableVirtualScroll } from "./components/hooks";
 export function Table<T extends TableObject>(
   props: TableProps<T> & {
     tableRef: Ref<HTMLTableElement>;
-    topRef: Ref<HTMLDivElement>;
-    bottomRef: Ref<HTMLDivElement>;
+    topRef: Ref<HTMLTableColElement>;
+    bottomRef: Ref<HTMLTableColElement>;
   }
 ) {
   const {
@@ -50,7 +52,7 @@ export function Table<T extends TableObject>(
 
   return (
     <table ref={props.tableRef} className={styles?.tableClassName}>
-      <div ref={props.topRef} />
+      <colgroup ref={props.topRef} style={{ display: "block" }} />
       <THead
         core={core}
         headRenderer={headRenderer}
@@ -65,7 +67,7 @@ export function Table<T extends TableObject>(
         {...common}
         {...bodyStyles}
       />
-      <div ref={props.bottomRef} />
+      <colgroup ref={props.bottomRef} style={{ display: "block" }} />
     </table>
   );
 }
@@ -121,6 +123,33 @@ export function useTableData<T extends TableObject>(
   };
 }
 
+function useRowHeight<T extends TableObject>(
+  tableRef: RefObject<HTMLTableElement>,
+  renderer: Partial<TableBodyRowRenderer<T>> | undefined
+) {
+  const [rowHeight, setRowHeight] = useState(0);
+
+  useEffect(() => {
+    const tbody = tableRef.current?.querySelector("tbody");
+    if (!tbody) return;
+    const observer = new MutationObserver(() => {
+      if (!tableRef.current) return;
+      const firstClild = tbody.querySelector(":first-child");
+      if (!firstClild) return;
+      const height = firstClild.getBoundingClientRect().height;
+      if (height === rowHeight) return;
+      setRowHeight(height);
+    });
+
+    observer.observe(tbody, {
+      childList: true,
+    });
+    return () => observer.disconnect();
+  }, [renderer]);
+
+  return rowHeight;
+}
+
 export function useTable<T extends TableObject>(
   initialData: T[],
   config: TableConfig<T>
@@ -130,8 +159,8 @@ export function useTable<T extends TableObject>(
 } & TableCoreData<T> {
   const data = useTableData(initialData);
   const ref = useRef<HTMLTableElement>(null);
-  const topRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLTableColElement>(null);
+  const bottomRef = useRef<HTMLTableColElement>(null);
   const refs = useMemo(
     () => ({
       tableRef: ref,
@@ -140,9 +169,13 @@ export function useTable<T extends TableObject>(
     }),
     []
   );
+
+  const rowHeight = useRowHeight(ref, config.bodyRenderer);
+
   const { displayable, recalculateDisplayable } = useTableVirtualScroll(
     config,
     refs,
+    rowHeight,
     data.data.length,
     config.virtualScrollInitial || data.data.length
   );

@@ -114,6 +114,7 @@ const showTableHead = debounce((table: HTMLTableElement) => {
 });
 function updateVirtualScrollImpl(
   config: VirtualScrollSettings,
+  rowHeight: number,
   scrollDom: HTMLElement,
   table: HTMLTableElement,
   topSpacer: HTMLElement,
@@ -121,20 +122,12 @@ function updateVirtualScrollImpl(
   totalDataLength: number,
   update: Dispatch<SetStateAction<TableDisplayableArea>>
 ) {
-  const elementHeight = table
-    .querySelector<HTMLElement>("tbody > :first-child")
-    ?.getBoundingClientRect().height;
-  if (!elementHeight) {
-    if (config.hideHeaderDuringScrolling) showTableHead(table);
-    return;
-  }
-
   const scrollTop = Math.max(
     scrollDom.scrollTop - (config.virtualScrollOffset || 0),
     0
   );
   const viewportHeight = scrollDom.getBoundingClientRect().height;
-  const totalHeight = totalDataLength * elementHeight;
+  const totalHeight = totalDataLength * rowHeight;
 
   const topElements =
     Math.round((scrollTop / totalHeight) * totalDataLength) -
@@ -145,8 +138,8 @@ function updateVirtualScrollImpl(
     (config.virtualScrollElementMarginBottom || 0);
   const bottomElements = totalDataLength - topElements - displayableElements;
 
-  const topMargin = Math.max(topElements, 0) * elementHeight;
-  const bottomMargin = Math.max(bottomElements, 0) * elementHeight;
+  const topMargin = Math.max(topElements, 0) * rowHeight;
+  const bottomMargin = Math.max(bottomElements, 0) * rowHeight;
   topSpacer.style.height = `${topMargin}px`;
   bottomSpacer.style.height = `${bottomMargin}px`;
 
@@ -154,6 +147,8 @@ function updateVirtualScrollImpl(
     displayStart: Math.max(topElements + 1, 0),
     displayEnd: Math.min(topElements + displayableElements, totalDataLength),
   });
+
+  console.log(totalDataLength, rowHeight, bottomMargin);
 
   if (config.hideHeaderDuringScrolling) showTableHead(table);
 }
@@ -168,6 +163,7 @@ export type TableRefs = {
 export function useTableVirtualScroll<T extends TableObject>(
   config: TableConfig<T>,
   refs: TableRefs,
+  rowHeight: number,
   totalDataLength: number,
   defaultLength: number
 ): { displayable?: TableDisplayableArea; recalculateDisplayable: () => void } {
@@ -199,6 +195,7 @@ export function useTableVirtualScroll<T extends TableObject>(
 
     updateVirtualScroll(
       config,
+      rowHeight,
       config.viewportRef.current,
       refs.tableRef.current,
       refs.topRef.current,
@@ -206,11 +203,17 @@ export function useTableVirtualScroll<T extends TableObject>(
       totalDataLength,
       setDisplayable
     );
-  }, [totalDataLength, defaultLength]);
+  }, [totalDataLength, defaultLength, rowHeight]);
 
+  useEffect(() => {
+    setDisplayable({
+      displayStart: 0,
+      displayEnd: defaultLength,
+    });
+  }, [totalDataLength, defaultLength]);
   useLayoutEffect(
     () => recalculateDisplayable(),
-    [totalDataLength, defaultLength]
+    [totalDataLength, defaultLength, rowHeight]
   );
 
   useEffect(() => {
