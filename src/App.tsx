@@ -128,7 +128,6 @@ export default function App() {
   const { table, recalculateDisplayable } = useTable(todos, {
     viewportRef: ref,
     virtualScrollInitial: 10,
-    hideHeaderDuringScrolling: true,
     virtualScrollOffset: 25,
     virtualScrollElementMarginTop: 30,
     virtualScrollElementMarginBottom: 30,

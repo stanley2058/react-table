@@ -19,7 +19,11 @@ import { v4 } from "uuid";
 import { useTableVirtualScroll } from "./components/hooks";
 
 export function Table<T extends TableObject>(
-  props: TableProps<T> & { tableRef: Ref<HTMLTableElement> }
+  props: TableProps<T> & {
+    tableRef: Ref<HTMLTableElement>;
+    topRef: Ref<HTMLDivElement>;
+    bottomRef: Ref<HTMLDivElement>;
+  }
 ) {
   const {
     data,
@@ -45,11 +49,8 @@ export function Table<T extends TableObject>(
   const core = useMemo(() => ({ data, updateFn }), [data, updateFn]);
 
   return (
-    <table
-      ref={props.tableRef}
-      className={styles?.tableClassName}
-      cellSpacing={0}
-    >
+    <table ref={props.tableRef} className={styles?.tableClassName}>
+      <div ref={props.topRef} />
       <THead
         core={core}
         headRenderer={headRenderer}
@@ -64,6 +65,7 @@ export function Table<T extends TableObject>(
         {...common}
         {...bodyStyles}
       />
+      <div ref={props.bottomRef} />
     </table>
   );
 }
@@ -128,16 +130,33 @@ export function useTable<T extends TableObject>(
 } & TableCoreData<T> {
   const data = useTableData(initialData);
   const ref = useRef<HTMLTableElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const refs = useMemo(
+    () => ({
+      tableRef: ref,
+      topRef,
+      bottomRef,
+    }),
+    []
+  );
   const { displayable, recalculateDisplayable } = useTableVirtualScroll(
     config,
-    ref,
-    initialData.length,
-    config.virtualScrollInitial || initialData.length
+    refs,
+    data.data.length,
+    config.virtualScrollInitial || data.data.length
   );
 
   return {
     table: (
-      <Table tableRef={ref} {...data} {...config} displayable={displayable} />
+      <Table
+        tableRef={ref}
+        topRef={topRef}
+        bottomRef={bottomRef}
+        {...data}
+        {...config}
+        displayable={displayable}
+      />
     ),
     recalculateDisplayable,
     ...data,

@@ -1,6 +1,8 @@
 import {
+  Dispatch,
   ReactNode,
   RefObject,
+  SetStateAction,
   createElement,
   useCallback,
   useEffect,
@@ -114,12 +116,13 @@ function updateVirtualScrollImpl(
   config: VirtualScrollSettings,
   scrollDom: HTMLElement,
   table: HTMLTableElement,
-  tbody: HTMLTableSectionElement,
+  topSpacer: HTMLElement,
+  bottomSpacer: HTMLElement,
   totalDataLength: number,
-  update: (displayable: TableDisplayableArea) => void
+  update: Dispatch<SetStateAction<TableDisplayableArea>>
 ) {
-  const elementHeight = tbody
-    .querySelector<HTMLElement>(":first-child")
+  const elementHeight = table
+    .querySelector<HTMLElement>("tbody > :first-child")
     ?.getBoundingClientRect().height;
   if (!elementHeight) {
     if (config.hideHeaderDuringScrolling) showTableHead(table);
@@ -132,36 +135,39 @@ function updateVirtualScrollImpl(
   );
   const viewportHeight = scrollDom.getBoundingClientRect().height;
   const totalHeight = totalDataLength * elementHeight;
-  const displayableCounts = Math.ceil(viewportHeight / elementHeight);
 
-  const startAt = Math.floor(scrollTop / elementHeight);
+  const topElements =
+    Math.round((scrollTop / totalHeight) * totalDataLength) -
+    (config.virtualScrollElementMarginTop || 0);
+  const displayableElements =
+    Math.round((viewportHeight / totalHeight) * totalDataLength) +
+    (config.virtualScrollElementMarginTop || 0) +
+    (config.virtualScrollElementMarginBottom || 0);
+  const bottomElements = totalDataLength - topElements - displayableElements;
 
-  const displayStart = Math.max(
-    startAt - (config.virtualScrollElementMarginTop || 0),
-    0
-  );
-  const displayEnd = Math.min(
-    startAt +
-      displayableCounts +
-      (config.virtualScrollElementMarginBottom || 0),
-    totalDataLength
-  );
+  const topMargin = Math.max(topElements, 0) * elementHeight;
+  const bottomMargin = Math.max(bottomElements, 0) * elementHeight;
+  topSpacer.style.height = `${topMargin}px`;
+  bottomSpacer.style.height = `${bottomMargin}px`;
 
-  const topMargin = displayStart * elementHeight;
-  const displayableHeight = (displayEnd - displayStart) * elementHeight;
-  const bottomMargin = totalHeight - displayableHeight - topMargin;
-  table.style.transform = `translateY(${topMargin}px)`;
-  table.style.paddingBottom = `${bottomMargin}px`;
-  update({ displayStart, displayEnd });
+  update({
+    displayStart: Math.max(topElements + 1, 0),
+    displayEnd: Math.min(topElements + displayableElements, totalDataLength),
+  });
 
   if (config.hideHeaderDuringScrolling) showTableHead(table);
 }
 
 const updateVirtualScroll = debounce(updateVirtualScrollImpl);
 
+export type TableRefs = {
+  tableRef: RefObject<HTMLTableElement>;
+  topRef: RefObject<HTMLDivElement>;
+  bottomRef: RefObject<HTMLDivElement>;
+};
 export function useTableVirtualScroll<T extends TableObject>(
   config: TableConfig<T>,
-  tableRef: RefObject<HTMLTableElement>,
+  refs: TableRefs,
   totalDataLength: number,
   defaultLength: number
 ): { displayable?: TableDisplayableArea; recalculateDisplayable: () => void } {
@@ -173,27 +179,34 @@ export function useTableVirtualScroll<T extends TableObject>(
   displayableRef.current = displayable;
 
   const recalculateDisplayable = useCallback(() => {
-    if (!config.viewportRef?.current || !tableRef.current) {
+    if (
+      !config.viewportRef?.current ||
+      !refs.tableRef.current ||
+      !refs.topRef.current ||
+      !refs.bottomRef.current
+    ) {
       setDisplayable({ displayStart: 0, displayEnd: defaultLength });
       return;
     }
-    const tbody = tableRef.current.querySelector("tbody");
-    if (!tbody) return;
 
-    if (config.hideHeaderDuringScrolling && displayable?.displayStart !== 0) {
-      const thead = tableRef.current.querySelector("thead");
+    if (
+      config.hideHeaderDuringScrolling &&
+      displayableRef.current?.displayStart !== 0
+    ) {
+      const thead = refs.tableRef.current.querySelector("thead");
       if (thead) thead.style.visibility = "hidden";
     }
 
     updateVirtualScroll(
       config,
       config.viewportRef.current,
-      tableRef.current,
-      tbody,
+      refs.tableRef.current,
+      refs.topRef.current,
+      refs.bottomRef.current,
       totalDataLength,
       setDisplayable
     );
-  }, [totalDataLength, defaultLength, displayable]);
+  }, [totalDataLength, defaultLength]);
 
   useLayoutEffect(
     () => recalculateDisplayable(),
